@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: bingx_bot
+    env_file:
+      - .env  
+    volumes:
+      - .:/app  
+      - ./notify_chats.json:/app/notify_chats.json  
+    restart: unless-stopped
