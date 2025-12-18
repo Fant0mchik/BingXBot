@@ -13,7 +13,7 @@ TOKEN = os.getenv("TOKEN")
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.WARNING
+    level=logging.INFO
 )
 
 NOTIFY_FILE = "notify_chats.json"
@@ -111,20 +111,19 @@ async def notifyhere(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logging.error(f"Exception occurred: {context.error}")
-    # Optionally, retry or notify admin here if needed
 
 request = HTTPXRequest(
     connection_pool_size=10,
-    read_timeout=30.0,
-    write_timeout=30.0,
-    connect_timeout=30.0,
-    pool_timeout=5.0,  
-    http_version="1.1"  
+    read_timeout=90.0,
+    write_timeout=90.0,
+    connect_timeout=90.0,
+    pool_timeout=10.0,
+    http_version="1.1"
 )
-application = ApplicationBuilder().token(TOKEN).request(request).build()
+
+application = ApplicationBuilder().token(TOKEN).request(request).get_updates_read_timeout(90.0).build()
 application.add_handler(CommandHandler("start", start))
-application.add_error_handler(error_handler)
 application.add_handler(CommandHandler("notifyhere", notifyhere))
+application.add_error_handler(error_handler) 
 
-
-notify_loop = asyncio.get_event_loop()  
+notify_loop = asyncio.get_event_loop()
