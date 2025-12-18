@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   bot:
     build: .
@@ -9,5 +7,5 @@ services:
     volumes:
       - .:/app  
       - ./notify_chats.json:/app/notify_chats.json  
-    restart: unless-stopped
+    restart: on-failure
     network_mode: "bridge"
