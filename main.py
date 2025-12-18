@@ -108,6 +108,11 @@ async def notifyhere(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_notify_chats(chats)
         await update.message.reply_text("✅ Notifications enabled for this chat")
 
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logging.error(f"Exception occurred: {context.error}")
+    # Optionally, retry or notify admin here if needed
+
 request = HTTPXRequest(
     connection_pool_size=10,
     read_timeout=30.0,
@@ -118,6 +123,7 @@ request = HTTPXRequest(
 )
 application = ApplicationBuilder().token(TOKEN).request(request).build()
 application.add_handler(CommandHandler("start", start))
+application.add_error_handler(error_handler)
 application.add_handler(CommandHandler("notifyhere", notifyhere))
 
 

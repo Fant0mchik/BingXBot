@@ -10,7 +10,7 @@ nest_asyncio.apply()
 async def main():
     asyncio.create_task(start_all_ws())
     notify("Bot started", None)  # Вставте тут
-    await application.run_polling()
+    await application.run_polling(timeout=60)
 
 if __name__ == "__main__":
     asyncio.run(main())
