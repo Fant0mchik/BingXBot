@@ -10,7 +10,7 @@ from main import notify
 import logging  
 
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 
 URL = "wss://open-api-swap.bingx.com/swap-market"
 FUNDING_URL = "https://open-api.bingx.com/openApi/swap/v2/quote/fundingRate"
