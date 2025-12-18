@@ -5,6 +5,7 @@ import json
 from dotenv import load_dotenv
 from telegram import Update
 import asyncio
+import telegram
 from telegram.request import HTTPXRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
@@ -29,7 +30,9 @@ def save_notify_chats(chats):
         json.dump(chats, f, indent=2)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info("Received /start")
     await update.message.reply_text("/notifyhere - Send messages about BingX USDT 0.01-2$ Coins events.")
+    logging.info("Sent /start response")
 
 def notify(event, details=None):
     lines = []
@@ -111,6 +114,8 @@ async def notifyhere(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logging.error(f"Exception occurred: {context.error}")
+    if isinstance(context.error, telegram.error.TimedOut):
+        logging.info("Retrying on TimedOut...")
 
 request = HTTPXRequest(
     connection_pool_size=10,

@@ -3,11 +3,10 @@ import time
 import gzip
 import io
 import requests
-import websocket
+import websockets
 import asyncio
 from collections import deque
 from main import notify  
-import ssl 
 import logging  
 
 
@@ -110,8 +109,8 @@ class BingXWS:
         self.symbols = symbols
         self.analyzers = {s: MarketAnalyzer(s) for s in symbols}
 
-    def on_open(self, ws):
-        logging.info(f"WebSocket opened for symbols: {self.symbols}")
+    async def subscribe(self, ws):
+        logging.info(f"WebSocket connected for symbols: {self.symbols}")
         i = 1
         for s in self.symbols:
             for ch in (
@@ -120,39 +119,42 @@ class BingXWS:
                 f"{s}@depth5@500ms",
                 f"{s}@bookTicker"
             ):
-                ws.send(json.dumps({
+                await ws.send(json.dumps({
                     "id": str(i),
                     "reqType": "sub",
                     "dataType": ch
                 }))
                 i += 1
 
-    def on_message(self, ws, message):
+    async def process_message(self, message):
         try:
-            raw = gzip.GzipFile(fileobj=io.BytesIO(message)).read().decode()
+            raw = gzip.decompress(message).decode()
+            #logging.debug(f"Raw message: {raw}")  # Debug raw
         except Exception as e:
             logging.error(f"Decompression error: {e}")
             return
 
         if raw == "Ping":
-            ws.send("Pong")
-            return
+            logging.info("Received Ping, sending Pong")
+            return "Pong"
         try:
             msg = json.loads(raw)
         except json.JSONDecodeError as e:
             logging.error(f"JSON decode error: {e}")
-            return
+            return None
 
         data = msg.get("data")
 
         if not data:
-            return
-        
+            return None
+
         if isinstance(data, list):
             for item in data:
                 self.handle_data(item)
         elif isinstance(data, dict):
             self.handle_data(data)
+
+        return None  # No response needed
 
     def handle_data(self, d):
         symbol = d.get("symbol")
@@ -173,28 +175,18 @@ class BingXWS:
         if "bids" in d:
             a.orderbook = d
 
-    def on_error(self, ws, error):
-        logging.error(f"WebSocket error: {error}")
-        # Ignore Broken pipe specifically
-        if "Broken pipe" in str(error):
-            logging.info("Ignoring Broken pipe error, reconnecting...")
-
-    def on_close(self, ws, close_status_code, close_msg):
-        logging.info(f"WebSocket closed: code={close_status_code}, msg={close_msg}")
-
     async def start(self):
-        loop = asyncio.get_running_loop()
         while True:
             try:
-                ws = websocket.WebSocketApp(
-                    URL,
-                    on_open=self.on_open,
-                    on_message=self.on_message,
-                    on_error=self.on_error,
-                    on_close=self.on_close,
-                )
-                await loop.run_in_executor(None, lambda: ws.run_forever(ping_interval=30, ping_timeout=10))
+                async with websockets.connect(URL) as ws:
+                    await self.subscribe(ws)
+                    async for message in ws:
+                        response = await self.process_message(message)
+                        if response:
+                            await ws.send(response)
+            except websockets.exceptions.ConnectionClosed as e:
+                logging.info(f"Connection closed: {e}")
             except Exception as e:
-                logging.error(f"Unexpected WebSocket error: {e}")
+                logging.error(f"Unexpected error: {e}")
             logging.info("Reconnecting in 5 seconds...")
-            await asyncio.sleep(5) 
+            await asyncio.sleep(5)

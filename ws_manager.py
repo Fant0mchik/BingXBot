@@ -6,7 +6,7 @@ from test import BingXWS
 async def start_all_ws():
     symbols = get_filtered_symbols()
 
-    for group in chunked(symbols, 50):
+    for group in chunked(symbols, 40):
         ws = BingXWS(group)
         asyncio.create_task(ws.start())
 
