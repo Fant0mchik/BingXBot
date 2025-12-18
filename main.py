@@ -121,7 +121,7 @@ request = HTTPXRequest(
     http_version="1.1"
 )
 
-application = ApplicationBuilder().token(TOKEN).request(request).get_updates_read_timeout(90.0).build()
+application = ApplicationBuilder().token(TOKEN).request(request).build()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("notifyhere", notifyhere))
 application.add_error_handler(error_handler) 
