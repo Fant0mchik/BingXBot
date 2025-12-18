@@ -1,0 +1,120 @@
+Websocket @lastPrice
+
+code - With regards to error messages, 0 means normal, and 1 means error.
+dataType - Subscribed data type, e.g., BTC-USDT@lastPrice
+data - Push content
+e - Event type
+E - Event time
+s - Trading pair, e.g., BTC-USDT
+c - Latest transaction price
+
+Raw message: {
+    "code":0,
+    "dataType":"WIF-USDT@lastPrice",
+    "data":
+        {
+        "e":"lastPriceUpdate",
+        "E":1766092067978,
+        "s":"WIF-USDT",
+        "c":"0.3306"
+        }
+}
+
+
+
+
+Websocket @depth5@500ms
+
+code - With regards to error messages, 0 means normal, and 1 means error
+dataType - The type of subscribed data, such as BTC-USDT@depth5@500ms
+data - Push Data
+asks - Sell side depth
+bids - Buy side depth
+
+Raw message: {
+    "code":0,
+    "dataType":"WIF-USDT@depth5@500ms",
+    "ts":1766092068241,
+    "data":
+        {
+            "bids":[
+                ["0.3304","12055.49"],
+                ["0.3303","48230.39"],
+                ["0.3302","93141.46"],
+                ["0.3301","72772.28"],
+                ["0.3300","87684.83"]
+            ],
+            "asks":[
+                ["0.3310","90448.77"],
+                ["0.3309","124889.36"],
+                ["0.3308","88143.24"],
+                ["0.3307","48123.67"],
+                ["0.3306","23974.73"]
+            ]
+        }
+    }
+
+
+
+
+Websocket @bookTicker
+
+code - Whether there is an error message, 0 for normal, 1 for error.
+dataType - Subscribed data type, e.g., BTC-USDT@bookTicker.
+data - Push content
+e - Event type
+u - Update ID
+E - Event time
+T - Transaction time
+s - Trading pair, e.g., BTC-USDT
+b - Best bid price
+B - Best bid quantity
+a - Best ask price
+A - Best ask quantity
+
+Raw message: {
+    "code":0,
+    "dataType":"WIF-USDT@bookTicker",
+    "data":
+        {
+            "e":"bookTicker",
+            "u":614479815,
+            "E":1766092068320,
+            "T":1766092068322,
+            "s":"WIF-USDT",
+            "b":"0.3304",
+            "B":"12055.49",
+            "a":"0.3306",
+            "A":"23974.73"
+        }
+    }
+
+
+
+Websocket @kline_1m
+code - With regards to error messages, 0 means normal, and 1 means error
+dataType - The type of subscribed data, such as market.depth.BTC-USDT.step0.level5
+data - Push Data
+c - Closing Price
+h - High Price
+l - Low Price
+o - Opening Price
+v - volume
+s - trading pair
+
+Raw message: {
+    "code":0,
+    "dataType":"WIF-USDT@kline_1m",
+    "s":"WIF-USDT",
+    "data":
+        [
+            {
+                "c":"0.3306",
+                "o":"0.3303",
+                "h":"0.3306",
+                "l":"0.3299",
+                "v":"23574.56",
+                "T":1766092020000
+            }
+        ]
+    }

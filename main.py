@@ -14,7 +14,7 @@ TOKEN = os.getenv("TOKEN")
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.WARNING
+    level=logging.INFO
 )
 
 NOTIFY_FILE = "notify_chats.json"
@@ -31,7 +31,7 @@ def save_notify_chats(chats):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info("Received /start")
-    await update.message.reply_text("/notifyhere - Send messages about BingX USDT 0.01-2$ Coins events.")
+    await update.message.reply_text("/notifyhere - Send messages about BingX USDT 0.0001-1$ Coins events.")
     logging.info("Sent /start response")
 
 def notify(event, details=None):
