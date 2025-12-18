@@ -16,7 +16,7 @@ from collections import defaultdict
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=logging.WARNING
 )
 DEBUG = True
 URL = "wss://open-api-swap.bingx.com/swap-market"

@@ -14,7 +14,7 @@ TOKEN = os.getenv("TOKEN")
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=logging.WARNING
 )
 
 NOTIFY_FILE = "notify_chats.json"
