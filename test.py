@@ -10,7 +10,10 @@ from main import notify
 import logging  
 
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.WARNING
+)
 
 URL = "wss://open-api-swap.bingx.com/swap-market"
 FUNDING_URL = "https://open-api.bingx.com/openApi/swap/v2/quote/fundingRate"
@@ -39,14 +42,17 @@ def get_funding_rate(symbol):
 class MarketAnalyzer:
     def __init__(self, symbol):
         self.symbol = symbol
-        self.prices = deque(maxlen=300)
-        self.volumes = deque(maxlen=300)
-        self.times = deque(maxlen=300)
+        self.prices = deque(maxlen=120)
+        self.times = deque(maxlen=120)
+        self.volumes = deque(maxlen=120)
+
 
         self.candles = None
         self.orderbook = None
-        self.last_peak = None
-        self.last_peak_time = None
+
+
+        self.last_event_ts = 0
+        self.cooldown = 30
 
     def update_price(self, price):
         self.prices.append(price)
@@ -57,34 +63,65 @@ class MarketAnalyzer:
         self.volumes.append(volume)
 
     def detect_events(self):
-        if len(self.prices) < 20:
+        if len(self.prices) < 30:
             return
 
-        start = self.prices[0]
+
         cur = self.prices[-1]
-        delta = (cur - start) / start * 100
-        duration = self.times[-1] - self.times[0]
-        speed = abs(delta) / duration if duration else 0
+        now = time.time()
 
-        if -30 <= delta <= -10:
-            notify("DUMP", self.details(cur))
-            self.reset()
 
-        if delta >= 5 and speed > 0.02:
+        if now - self.last_event_ts < self.cooldown:
+            return
+
+
+        window_prices = list(self.prices)
+        window_times = list(self.times)
+
+
+        low = min(window_prices)
+        high = max(window_prices)
+
+
+        low_idx = window_prices.index(low)
+        high_idx = window_prices.index(high)
+
+
+        delta_up = (cur - low) / low * 100
+        delta_down = (cur - high) / high * 100
+
+
+        duration_up = now - window_times[low_idx]
+        duration_down = now - window_times[high_idx]
+
+
+        speed_up = delta_up / duration_up if duration_up > 0 else 0
+        speed_down = abs(delta_down) / duration_down if duration_down > 0 else 0
+
+
+        if delta_up >= 4 and speed_up >= 0.015:
+            logging.warning("Pump detected")
             notify("PUMP", self.details(cur))
-            self.reset()
+            self.last_event_ts = now
+            return
 
-        if 8 <= delta <= 30 and speed > 0.03:
-            self.last_peak = cur
-            self.last_peak_time = time.time()
 
-        if self.last_peak and time.time() - self.last_peak_time >= 15:
-            funding = get_funding_rate(self.symbol)
-            vwap = sum(self.prices) / len(self.prices)
+        if delta_down <= -4 and speed_down >= 0.015:
+            logging.warning("Dump detected")
+            notify("DUMP", self.details(cur))
+            self.last_event_ts = now
+            return
 
-            if funding and funding > 0.01 and cur > vwap * 1.03:
-                notify("OVERPUMP — SHORT ZONE", self.details(cur,funding))
-                self.reset()
+
+        funding = get_funding_rate(self.symbol)
+        vwap = sum(window_prices) / len(window_prices)
+
+
+        if funding is not None:
+            if funding > 0.01 and cur > vwap * 1.03:
+                logging.warning("OVERPUMP detected")
+                notify("OVERPUMP — SHORT ZONE", self.details(cur, funding))
+                self.last_event_ts = now
 
     def details(self, price, funding=None):
         return {
@@ -96,11 +133,6 @@ class MarketAnalyzer:
             "funding_rate": funding
         }
 
-    def reset(self):
-        self.prices.clear()
-        self.times.clear()
-        self.last_peak = None
-        self.last_peak_time = None
 
 # ---------------- WS ---------------- #
 
@@ -129,7 +161,7 @@ class BingXWS:
     async def process_message(self, message):
         try:
             raw = gzip.decompress(message).decode()
-            #logging.debug(f"Raw message: {raw}")  # Debug raw
+            #logging.info(f"Raw message: {raw}")  
         except Exception as e:
             logging.error(f"Decompression error: {e}")
             return
@@ -158,7 +190,7 @@ class BingXWS:
 
     def handle_data(self, d):
         symbol = d.get("symbol")
-        if not symbol or symbol not in self.analyzers:
+        if symbol not in self.analyzers:
             return
 
         a = self.analyzers[symbol]
@@ -166,14 +198,13 @@ class BingXWS:
         if "lastPrice" in d:
             a.update_price(float(d["lastPrice"]))
 
-        if "v" in d:
-            a.update_volume(float(d["v"]))
-
-        if "k" in d:
+        if "k" in d and "v" in d["k"]:
+            a.update_volume(float(d["k"]["v"]))
             a.candles = d
 
         if "bids" in d:
             a.orderbook = d
+
 
     async def start(self):
         while True:

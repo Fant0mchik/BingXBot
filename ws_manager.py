@@ -5,6 +5,7 @@ from test import BingXWS
 
 async def start_all_ws():
     symbols = get_filtered_symbols()
+    #symbols = ["WIF-USDT"]
 
     for group in chunked(symbols, 40):
         ws = BingXWS(group)
