@@ -7,6 +7,11 @@ import websocket
 import asyncio
 from collections import deque
 from main import notify  
+import ssl 
+import logging  
+
+
+logging.basicConfig(level=logging.INFO)
 
 URL = "wss://open-api-swap.bingx.com/swap-market"
 FUNDING_URL = "https://open-api.bingx.com/openApi/swap/v2/quote/fundingRate"
@@ -106,8 +111,8 @@ class BingXWS:
         self.analyzers = {s: MarketAnalyzer(s) for s in symbols}
 
     def on_open(self, ws):
+        logging.info(f"WebSocket opened for symbols: {self.symbols}")
         i = 1
-        print("Websocket opened")
         for s in self.symbols:
             for ch in (
                 f"{s}@lastPrice",
@@ -125,16 +130,18 @@ class BingXWS:
     def on_message(self, ws, message):
         try:
             raw = gzip.GzipFile(fileobj=io.BytesIO(message)).read().decode()
-        except:
-            return  # Handle decompression errors gracefully
-        
+        except Exception as e:
+            logging.error(f"Decompression error: {e}")
+            return
+
         if raw == "Ping":
             ws.send("Pong")
             return
         try:
             msg = json.loads(raw)
-        except json.JSONDecodeError:
-            return  # Handle invalid JSON
+        except json.JSONDecodeError as e:
+            logging.error(f"JSON decode error: {e}")
+            return
 
         data = msg.get("data")
 
@@ -167,24 +174,27 @@ class BingXWS:
             a.orderbook = d
 
     def on_error(self, ws, error):
-        print(f"WebSocket error: {error}")
+        logging.error(f"WebSocket error: {error}")
+        # Ignore Broken pipe specifically
+        if "Broken pipe" in str(error):
+            logging.info("Ignoring Broken pipe error, reconnecting...")
 
     def on_close(self, ws, close_status_code, close_msg):
-        print(f"WebSocket closed: code={close_status_code}, msg={close_msg}")
+        logging.info(f"WebSocket closed: code={close_status_code}, msg={close_msg}")
 
     async def start(self):
         loop = asyncio.get_running_loop()
         while True:
-            ws = websocket.WebSocketApp(
-                URL,
-                on_open=self.on_open,
-                on_message=self.on_message,
-                on_error=self.on_error,
-                on_close=self.on_close,
-            )
             try:
-                await loop.run_in_executor(None, ws.run_forever)
+                ws = websocket.WebSocketApp(
+                    URL,
+                    on_open=self.on_open,
+                    on_message=self.on_message,
+                    on_error=self.on_error,
+                    on_close=self.on_close,
+                )
+                await loop.run_in_executor(None, lambda: ws.run_forever(ping_interval=30, ping_timeout=10))
             except Exception as e:
-                print(f"Unexpected error in WebSocket: {e}")
-            print("Reconnecting in 5 seconds...")
-            await asyncio.sleep(5)  
+                logging.error(f"Unexpected WebSocket error: {e}")
+            logging.info("Reconnecting in 5 seconds...")
+            await asyncio.sleep(5) 
