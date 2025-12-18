@@ -108,8 +108,15 @@ async def notifyhere(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_notify_chats(chats)
         await update.message.reply_text("✅ Notifications enabled for this chat")
 
-request = HTTPXRequest(connection_pool_size=10, read_timeout=30, write_timeout=30, connect_timeout=30)
-application = ApplicationBuilder().token(TOKEN).http_version("1.1").request(request).build()
+request = HTTPXRequest(
+    connection_pool_size=10,
+    read_timeout=30.0,
+    write_timeout=30.0,
+    connect_timeout=30.0,
+    pool_timeout=5.0,  
+    http_version="1.1"  
+)
+application = ApplicationBuilder().token(TOKEN).request(request).build()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("notifyhere", notifyhere))
 
