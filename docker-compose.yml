@@ -10,3 +10,4 @@ services:
       - .:/app  
       - ./notify_chats.json:/app/notify_chats.json  
     restart: unless-stopped
+    network_mode: "bridge"
