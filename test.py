@@ -81,6 +81,15 @@ class MarketAnalyzer:
         self._cached_vwap = None
         self._cached_volume_sum = None
 
+        self.last_pump_price = None
+        self.last_dump_price = None
+        self.last_pump_time = 0
+        self.last_dump_time = 0
+
+        self.min_price_change_for_repeat = 0.03  # 3%
+
+        self.price_reset_timeout = 3600  
+
 
     def update_price(self, price):
         self.prices.append(price)
@@ -152,19 +161,53 @@ class MarketAnalyzer:
                 )
                 
 
+        if self.last_pump_time > 0 and now - self.last_pump_time > self.price_reset_timeout:
+            self.last_pump_price = None
+            self.last_pump_time = 0
+        
+        if self.last_dump_time > 0 and now - self.last_dump_time > self.price_reset_timeout:
+            self.last_dump_price = None
+            self.last_dump_time = 0
 
-        if delta_up >= 4 and speed_up >= 0.015:
-            logging.warning(f"Pump detected on {self.symbol}")
-            notify("PUMP", self.details(cur))
-            self.last_event_ts = now
-            return
+        if delta_up >= 4 and delta_up <= 30 and duration_up >= 5 and duration_up <= 300:      
+            should_notify_pump = False
+            
+            if self.last_pump_price is None:
+                should_notify_pump = True
+            else:
+ 
+                price_change_from_last = abs(cur - self.last_pump_price) / self.last_pump_price
+                if price_change_from_last >= self.min_price_change_for_repeat:
+                    should_notify_pump = True
+            
+            if should_notify_pump:
+                logging.warning(f"Pump detected on {self.symbol}: {delta_up:.2f}% за {duration_up:.1f}с (ціна: {cur})")
+                notify("PUMP", self.details(cur))
+                self.last_event_ts = now
+                self.last_pump_price = cur
+                self.last_pump_time = now
+                return
 
 
-        if delta_down <= -4 and speed_down >= 0.015:
-            logging.warning(f"Dump detected on {self.symbol}")
-            notify("DUMP", self.details(cur))
-            self.last_event_ts = now
-            return
+
+        if delta_down <= -4 and delta_down >= -30 and duration_down >= 5 and duration_down <= 300:
+            should_notify_dump = False
+            
+            if self.last_dump_price is None:
+
+                should_notify_dump = True
+            else:
+                price_change_from_last = abs(cur - self.last_dump_price) / self.last_dump_price
+                if price_change_from_last >= self.min_price_change_for_repeat:
+                    should_notify_dump = True
+            
+            if should_notify_dump:
+                logging.warning(f"Dump detected on {self.symbol}: {abs(delta_down):.2f}% за {duration_down:.1f}с (ціна: {cur})")
+                notify("DUMP", self.details(cur))
+                self.last_event_ts = now
+                self.last_dump_price = cur
+                self.last_dump_time = now
+                return
 
 
         vwap = sum(self.prices) / len(self.prices) if self.prices else cur
