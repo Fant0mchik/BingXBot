@@ -8,6 +8,7 @@ import asyncio
 import telegram
 from telegram.request import HTTPXRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from render_chart import render_candles
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
@@ -30,16 +31,16 @@ def save_notify_chats(chats):
         json.dump(chats, f, indent=2)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info("Received /start")
+    #logging.info("Received /start")
     await update.message.reply_text("/notifyhere - Send messages about BingX USDT 0.0001-1$ Coins events.")
-    logging.info("Sent /start response")
+    #logging.info("Sent /start response")
 
 def notify(event, details=None):
     lines = []
 
     # Заголовок події
     lines.append(f"{'🟡' if event=='PUMP' else '🔵' if event=='DUMP' else '🔴'} <b>{event}</b>\n")
-
+    path = None
     if details:
         # Символ
         if "symbol" in details:
@@ -48,6 +49,9 @@ def notify(event, details=None):
         # Ціна
         if "price" in details:
             lines.append(f"💰 <b>Price:</b> <code>{details['price']}</code>\n")
+
+        if "percent" in details:
+            lines.append(f"📈 <b>Change:</b> <code>{details['percent']}%</code>\n")
 
         # Обʼєм
         if "volume" in details and details["volume"] is not None:
@@ -58,13 +62,28 @@ def notify(event, details=None):
             lines.append(f"⚡ <b>Funding rate:</b> <code>{details['funding_rate']}</code>\n")
 
         # Свічка
-        candle = details.get("candle")
-        if isinstance(candle, dict):
-            lines.append("🕯 <b>Candle (1m):</b>")
-            for key in ("open", "high", "low", "close", "volume"):
-                if key in candle:
-                    lines.append(f"   > {key}: <code>{candle[key]}</code>")
-            lines.append("\n")
+
+        candles = list(details.get("candles"))
+        symbol = details.get("symbol")
+
+        if isinstance(candles, list) and symbol:
+            path = f"images/{symbol}_chart.png"
+            for filename in os.listdir("images/"):
+                if os.path.isfile(filename):
+                    try:
+                        os.remove(f"images/{filename}")
+                    except Exception as e:
+                        logging.error(f"Error deleting file {filename}: {e}")
+
+            render_candles(symbol, candles, path)
+
+        # candle = details.get("candle")
+        # if isinstance(candle, dict):
+        #     lines.append("🕯 <b>Candle (1m):</b>")
+        #     for key in ("open", "high", "low", "close", "volume"):
+        #         if key in candle:
+        #             lines.append(f"   > {key}: <code>{candle[key]}</code>")
+        #     lines.append("\n")
 
         # Стакан
         orderbook = details.get("orderbook")
@@ -89,11 +108,18 @@ def notify(event, details=None):
 
     for chat_id in load_notify_chats():
         asyncio.run_coroutine_threadsafe(
+            application.bot.send_photo(
+                chat_id,
+                photo=open(path, 'rb') if os.path.exists(path) else None,
+                caption=message_text,
+                parse_mode="HTML"          
+            ),
+            notify_loop  
+        ) if path else asyncio.run_coroutine_threadsafe(
             application.bot.send_message(
                 chat_id,
-                message_text,
-                parse_mode="HTML",
-                disable_web_page_preview=True
+                text=message_text,
+                parse_mode="HTML"
             ),
             notify_loop  
         )

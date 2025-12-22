@@ -1,7 +1,6 @@
 import json
 import time
 import gzip
-import io
 import aiohttp
 import websockets
 import asyncio
@@ -9,8 +8,7 @@ import threading
 from collections import deque
 from main import notify  
 import logging  
-import random
-from collections import defaultdict
+
 
 
 
@@ -71,7 +69,7 @@ class MarketAnalyzer:
         self.volumes = deque(maxlen=120)
 
 
-        self.candles = None
+        self.candles = deque(maxlen=120)
         self.orderbook = None
 
 
@@ -182,7 +180,7 @@ class MarketAnalyzer:
             
             if should_notify_pump:
                 logging.warning(f"Pump detected on {self.symbol}: {delta_up:.2f}% за {duration_up:.1f}с (ціна: {cur})")
-                notify("PUMP", self.details(cur))
+                notify("PUMP", self.details(cur,f"{delta_up:.2f}"))
                 self.last_event_ts = now
                 self.last_pump_price = cur
                 self.last_pump_time = now
@@ -203,7 +201,7 @@ class MarketAnalyzer:
             
             if should_notify_dump:
                 logging.warning(f"Dump detected on {self.symbol}: {abs(delta_down):.2f}% за {duration_down:.1f}с (ціна: {cur})")
-                notify("DUMP", self.details(cur))
+                notify("DUMP", self.details(cur, f"{abs(delta_down):.2f}"))
                 self.last_event_ts = now
                 self.last_dump_price = cur
                 self.last_dump_time = now
@@ -220,16 +218,17 @@ class MarketAnalyzer:
             notify("OVERPUMP — SHORT ZONE", self.details(cur, funding))
             self.last_event_ts = now
 
-    def details(self, price, funding=None):
+    def details(self, price, prcent,funding=None):
         if self._cached_volume_sum is None:
             self._cached_volume_sum = sum(self.volumes)
         return {
             "symbol": self.symbol,
             "price": price,
             "volume": self._cached_volume_sum,
-            "candle": self.candles,
+            "candles": self.candles,
             "orderbook": self.orderbook,
-            "funding_rate": funding
+            "funding_rate": funding,
+            "percent": prcent
         }
 
 
@@ -336,20 +335,20 @@ class BingXWS:
             _queue_symbol_if_needed(symbol)
 
         # Обробка @kline_1m: має поля c, o, h, l, v, T
-        # v - volume знаходиться безпосередньо в об'єкті, не в d["k"]["v"]
         if "v" in d and "T" in d:
             # Це kline дані
             if "c" in d:
                 a.update_price(float(d["c"]))
             if "v" in d:
                 a.update_volume(float(d["v"]))
-            a.candles = {
+            a.candles.append({
+                "time": d.get("T", 0),
                 "open": float(d.get("o", 0)),
                 "high": float(d.get("h", 0)),
                 "low": float(d.get("l", 0)),
                 "close": float(d.get("c", 0)),
                 "volume": float(d.get("v", 0))
-            }
+            })
             _queue_symbol_if_needed(symbol)
 
         # Обробка @bookTicker: має поля b, B, a, A
@@ -367,7 +366,6 @@ class BingXWS:
 
 
     async def _funding_rate_updater(self):
-        """Окремий worker для оновлення funding rates"""
         while True:
             try:
                 now = time.time()
@@ -388,7 +386,6 @@ class BingXWS:
                 await asyncio.sleep(5)
     
     async def _detect_events_worker(self, worker_id):
-        """Worker для обробки detect_events"""
         while True:
             try:
                 symbol = await asyncio.wait_for(self.detect_queue.get(), timeout=1.0)
@@ -411,10 +408,9 @@ class BingXWS:
             except asyncio.TimeoutError:
                 continue
             except Exception as e:
-                logging.error(f"Error in detect_events_worker {worker_id}: {e}")
+                logging.error(f"Error in detect_events_worker {worker_id}: {e} ")
     
     async def _update_perf_stats(self, elapsed_time):
-        """Оновлює статистику продуктивності (thread-safe)"""
         async with self.perf_stats['lock']:
             stats = self.perf_stats
             stats['total_processed'] += 1
@@ -432,7 +428,6 @@ class BingXWS:
                 stats['last_report_time'] = now
     
     async def _log_perf_stats(self):
-        """Логує статистику продуктивності (викликається з lock)"""
         stats = self.perf_stats
         if stats['total_processed'] == 0:
             return
