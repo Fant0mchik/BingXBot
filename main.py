@@ -69,11 +69,11 @@ def notify(event, details=None):
         if isinstance(candles, list) and symbol:
             path = f"images/{symbol}_chart.png"
             for filename in os.listdir("images/"):
-                if os.path.isfile(filename):
-                    try:
-                        os.remove(f"images/{filename}")
-                    except Exception as e:
-                        logging.error(f"Error deleting file {filename}: {e}")
+                try:
+                    os.remove(f"images/{filename}")
+                except Exception as e:
+                    logging.error(f"Error deleting file {filename}: {e}")
+                    
 
             render_candles(symbol, candles, path)
 
