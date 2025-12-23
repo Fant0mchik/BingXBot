@@ -122,29 +122,28 @@ class MarketAnalyzer:
             return
 
 
-        if len(self.prices) == 0:
+        indices = [i for i, t in enumerate(self.times) if now - t <= 300]
+        if len(indices) < 2:
             return
-        
-        low = high = self.prices[0]
-        low_idx = high_idx = 0
-        
-        for i, price in enumerate(self.prices):
+
+        first_idx = indices[0]
+        low = high = self.prices[first_idx]
+        low_idx = high_idx = first_idx
+
+        for i in indices:
+            price = self.prices[i]
             if price < low:
                 low = price
                 low_idx = i
             if price > high:
                 high = price
                 high_idx = i
-        
-        window_times = list(self.times)
-
 
         delta_up = (cur - low) / low * 100
         delta_down = (cur - high) / high * 100
 
-
-        duration_up = now - window_times[low_idx]
-        duration_down = now - window_times[high_idx]
+        duration_up = now - self.times[low_idx]
+        duration_down = now - self.times[high_idx]
 
 
         speed_up = delta_up / duration_up if duration_up > 0 else 0

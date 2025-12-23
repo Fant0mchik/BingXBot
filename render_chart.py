@@ -19,11 +19,25 @@ def render_candles(symbol: str, candles: list, path: str):
         "volume": "Volume"
     })
 
+    custom_style = mpf.make_mpf_style(
+        base_mpf_style='charles',
+        marketcolors=mpf.make_marketcolors(
+            up='green',
+            down='red',
+            edge='inherit',
+            wick='inherit',
+            volume='inherit'
+        ),
+        facecolor='black',
+        figcolor='black',
+        rc={'text.color': 'white', 'axes.labelcolor': 'white', 'xtick.color': 'white', 'ytick.color': 'white'}
+    )
+
     mpf.plot(
         df,
         type="candle",
         volume=True,
-        style="yahoo",
+        style=custom_style,
         title=symbol,
         savefig=dict(fname=path, dpi=120, bbox_inches="tight")
     )
