@@ -10,12 +10,6 @@ from main import notify
 import logging  
 
 
-
-
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.WARNING
-)
 DEBUG = True
 URL = "wss://open-api-swap.bingx.com/swap-market"
 FUNDING_URL = "https://open-api.bingx.com/openApi/swap/v2/quote/fundingRate"
@@ -64,12 +58,12 @@ async def get_funding_rate_async(symbol):
 class MarketAnalyzer:
     def __init__(self, symbol):
         self.symbol = symbol
-        self.prices = deque(maxlen=120)
-        self.times = deque(maxlen=120)
-        self.volumes = deque(maxlen=120)
+        self.prices = deque(maxlen=240)
+        self.times = deque(maxlen=240)
+        self.volumes = deque(maxlen=240)
 
 
-        self.candles = deque(maxlen=120)
+        self.candles = deque(maxlen=240)
         self.orderbook = None
 
 
@@ -84,7 +78,7 @@ class MarketAnalyzer:
         self.last_pump_time = 0
         self.last_dump_time = 0
 
-        self.min_price_change_for_repeat = 0.03  # 3%
+        self.min_price_change_for_repeat = 0.05  # 5%
 
         self.price_reset_timeout = 3600  
 
@@ -139,6 +133,10 @@ class MarketAnalyzer:
                 high = price
                 high_idx = i
 
+        volatility = (high - low) / low if low > 0 else 0
+        if volatility < 0.02:  
+            return
+
         delta_up = (cur - low) / low * 100
         delta_down = (cur - high) / high * 100
 
@@ -166,7 +164,7 @@ class MarketAnalyzer:
             self.last_dump_price = None
             self.last_dump_time = 0
 
-        if delta_up >= 4 and delta_up <= 30 and duration_up >= 5 and duration_up <= 300:      
+        if delta_up >= 5 and delta_up <= 30 and duration_up >= 5 and duration_up <= 300:      
             should_notify_pump = False
             
             if self.last_pump_price is None:
@@ -187,7 +185,7 @@ class MarketAnalyzer:
 
 
 
-        if delta_down <= -4 and delta_down >= -30 and duration_down >= 5 and duration_down <= 300:
+        if delta_down <= -5 and delta_down >= -30 and duration_down >= 5 and duration_down <= 300:
             should_notify_dump = False
             
             if self.last_dump_price is None:
@@ -340,14 +338,21 @@ class BingXWS:
                 a.update_price(float(d["c"]))
             if "v" in d:
                 a.update_volume(float(d["v"]))
-            a.candles.append({
+            
+            new_candle = {
                 "time": d.get("T", 0),
                 "open": float(d.get("o", 0)),
                 "high": float(d.get("h", 0)),
                 "low": float(d.get("l", 0)),
                 "close": float(d.get("c", 0)),
                 "volume": float(d.get("v", 0))
-            })
+            }
+            
+            if a.candles and a.candles[-1]["time"] == new_candle["time"]:
+                a.candles[-1] = new_candle
+            else:
+                a.candles.append(new_candle)
+            
             _queue_symbol_if_needed(symbol)
 
         # Обробка @bookTicker: має поля b, B, a, A

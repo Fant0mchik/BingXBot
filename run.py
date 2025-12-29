@@ -4,12 +4,19 @@ import nest_asyncio
 from main import application
 from ws_manager import start_all_ws
 from main import notify
+import logging
 
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 nest_asyncio.apply()
+import main
+main.notify_loop = asyncio.get_event_loop()
 
 async def main():
     asyncio.create_task(start_all_ws())
-    notify("Bot started", None)  # Вставте тут
+    notify("Bot started", None)  
     await application.run_polling(timeout=90)
 
 if __name__ == "__main__":

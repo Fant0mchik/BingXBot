@@ -13,11 +13,6 @@ from render_chart import render_candles
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.WARNING
-)
-
 NOTIFY_FILE = "notify_chats.json"
 
 def load_notify_chats():
@@ -107,6 +102,7 @@ def notify(event, details=None):
     message_text = "\n".join(lines)
 
     for chat_id in load_notify_chats():
+        logging.info(f"Sending notification to chat {chat_id}")
         asyncio.run_coroutine_threadsafe(
             application.bot.send_photo(
                 chat_id,
@@ -157,4 +153,4 @@ application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("notifyhere", notifyhere))
 application.add_error_handler(error_handler) 
 
-notify_loop = asyncio.get_event_loop()
+notify_loop = None
