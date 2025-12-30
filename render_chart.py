@@ -43,7 +43,7 @@ def render_candles(symbol: str, candles: list, path: str):
 
     q_low = df['Low'].quantile(0.01)
     q_high = df['High'].quantile(0.99)
-    padding = (q_high - q_low) * 0.05
+    padding = (q_high - q_low) * 0.1
     y_limits = (q_low - padding, q_high + padding)
 
 
@@ -84,6 +84,6 @@ def render_candles(symbol: str, candles: list, path: str):
         title=symbol,
         ylim=y_limits, 
         tight_layout=True, 
-        scale_padding={'left': 0.05, 'right': 0.95, 'top': 0.95, 'bottom': 0.05},
+        scale_padding={'left': 0.1, 'right': 0.9, 'top': 0.9, 'bottom': 0.1},
         savefig=dict(fname=path, dpi=120, bbox_inches="tight")
     )

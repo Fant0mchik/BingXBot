@@ -58,12 +58,12 @@ async def get_funding_rate_async(symbol):
 class MarketAnalyzer:
     def __init__(self, symbol):
         self.symbol = symbol
-        self.prices = deque(maxlen=240)
-        self.times = deque(maxlen=240)
-        self.volumes = deque(maxlen=240)
+        self.prices = deque(maxlen=120)
+        self.times = deque(maxlen=120)
+        self.volumes = deque(maxlen=120)
 
 
-        self.candles = deque(maxlen=240)
+        self.candles = deque(maxlen=120)
         self.orderbook = None
 
 
