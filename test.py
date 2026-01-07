@@ -134,7 +134,7 @@ class MarketAnalyzer:
                 high_idx = i
 
         volatility = (high - low) / low if low > 0 else 0
-        if volatility < 0.02:  
+        if volatility < 0.03:  
             return
 
         delta_up = (cur - low) / low * 100
@@ -164,7 +164,7 @@ class MarketAnalyzer:
             self.last_dump_price = None
             self.last_dump_time = 0
 
-        if delta_up >= 5 and delta_up <= 30 and duration_up >= 5 and duration_up <= 300:      
+        if delta_up >= 10 and delta_up <= 30 and duration_up >= 5 and duration_up <= 300:      
             should_notify_pump = False
             
             if self.last_pump_price is None:
@@ -185,7 +185,7 @@ class MarketAnalyzer:
 
 
 
-        if delta_down <= -5 and delta_down >= -30 and duration_down >= 5 and duration_down <= 300:
+        if delta_down <= -15 and delta_down >= -50 and duration_down >= 5 and duration_down <= 300:
             should_notify_dump = False
             
             if self.last_dump_price is None:
